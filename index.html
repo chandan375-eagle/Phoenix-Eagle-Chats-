@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phoenix Eagle Chat</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        .dark {
+            --bg-primary: #1a1a1a;
+            --bg-secondary: #2d2d2d;
+            --text-primary: #e8e8e8;
+            --text-secondary: #a0a0a0;
+            --border-color: #404040;
+        }
+        
+        .light {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f7f7f8;
+            --text-primary: #1f1f1f;
+            --text-secondary: #5f6368;
+            --border-color: #e8e8e8;
+        }
+        
+        body {
+            transition: background-color 0.3s ease;
+        }
+        
+        .sidebar-transition {
+            transition: transform 0.3s ease-in-out;
+        }
+        
+        .typing-cursor::after {
+            content: '▋';
+            animation: blink 1s infinite;
+        }
+        
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+        
+        .message-user {
+            background: #e3f2fd;
+            border-radius: 18px 18px 4px 18px;
+        }
+        
+        .dark .message-user {
+            background: #2d4a5c;
+        }
+        
+        .message-ai {
+            background: #f7f7f8;
+            border-radius: 18px 18px 18px 4px;
+        }
+        
+        .dark .message-ai {
+            background: #2d2d2d;
+        }
+        
+        pre {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 1rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 0.5rem 0;
+        }
+        
+        code {
+            font-family: 'Courier New', monospace;
+        }
+        
+        .modal-overlay {
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+        }
+        
+        .parallel-response {
+            border: 2px solid transparent;
+            transition: all 0.2s;
+        }
+        
+        .parallel-response:hover {
+            border-color: #4285f4;
+        }
+        
+        .parallel-response.selected {
+            border-color: #34a853;
+            background: rgba(52, 168, 83, 0.1);
+        }
+        
+        .scroll-smooth {
+            scroll-behavior: smooth;
+        }
+    </style>
+</head>
+<body class="min-h-screen light">
+    <!-- Loading Screen -->
+    <div id="loading" class="flex items-center justify-center min-h-screen bg-white dark:bg-gray-900">
+        <div class="text-center">
+            <div class="text-2xl font-bold text-blue-600 mb-2">🔥 Phoenix Eagle Chat</div>
+            <div class="text-gray-600">Loading...</div>
+        </div>
+    </div>
+
+    <!-- Main App Container -->
+    <div id="app" class="hidden min-h-screen flex flex-col" style="background-color: var(--bg-primary); color: var(--text-primary);">
+        
+        <!-- Mobile Header -->
+        <div class="lg:hidden flex items-center justify-between p-4 border-b" style="border-color: var(--border-color);">
+            <button id="menuBtn" class="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                </svg>
+            </button>
+            <div class="font-bold text-lg">🔥 Phoenix Eagle Chat</div>
+            <button id="settingsBtnMobile" class="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                </svg>
+            </button>
+        </div>
+
+        <div class="flex flex-1 overflow-hidden">
+            
+            <!-- Sidebar -->
+            <div id="sidebar" class="sidebar-transition fixed lg:static inset-y-0 left-0 z-40 w-64 transform -translate-x-full lg:translate-x-0 flex flex-col border-r" style="background-color: var(--bg-secondary); border-color: var(--border-color);">
+                
+                <!-- Sidebar Header -->
+                <div class="p-4 border-b" style="border-color: var(--border-color);">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="font-bold text-lg hidden lg:block">🔥 Phoenix Eagle</div>
+                        <button id="closeSidebarBtn" class="lg:hidden p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    <button id="newChatBtn" class="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition">
+                        + New Chat
+                    </button>
+                </div>
+
+                <!-- Chat History -->
+                <div id="chatHistory" class="flex-1 overflow-y-auto p-2">
+                    <!-- Chat items will be inserted here -->
+                </div>
+
+                <!-- Sidebar Footer -->
+                <div class="p-4 border-t" style="border-color: var(--border-color);">
+                    <button id="darkModeToggle" class="w-full py-2 px-4 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 flex items-center justify-center gap-2 transition">
+                        <span id="darkModeIcon">🌙</span>
+                        <span id="darkModeText">Dark Mode</span>
+                    </button>
+                    <button id="settingsBtn" class="w-full mt-2 py-2 px-4 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 flex items-center justify-center gap-2 transition">
+                        <span>⚙️</span>
+                        <span>Settings</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Sidebar Overlay (Mobile) -->
+            <div id="sidebarOverlay" class="hidden fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden"></div>
+
+            <!-- Main Content Area -->
+            <div class="flex-1 flex flex-col min-w-0">
+                
+                <!-- Chat Messages Area -->
+                <div id="messagesContainer" class="flex-1 overflow-y-auto p-4 scroll-smooth">
+                    <!-- Welcome Screen -->
+                    <div id="welcomeScreen" class="max-w-3xl mx-auto text-center py-20">
+                        <h1 class="text-4xl font-bold mb-4">🔥 Phoenix Eagle Chat</h1>
+                        <p class="text-lg mb-6" style="color: var(--text-secondary);">
+                            Multi-model AI chat interface. Select multiple models and compare responses in real-time.
+                        </p>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8 text-left">
+                            <div class="p-4 rounded-lg" style="background-color: var(--bg-secondary);">
+                                <div class="font-bold mb-2">🤖 Multiple Models</div>
+                                <p class="text-sm" style="color: var(--text-secondary);">Compare responses from up to 5 AI models simultaneously</p>
+                            </div>
+                            <div class="p-4 rounded-lg" style="background-color: var(--bg-secondary);">
+                                <div class="font-bold mb-2">⚡ Real-time Streaming</div>
+                                <p class="text-sm" style="color: var(--text-secondary);">Watch AI responses stream in real-time</p>
+                            </div>
+                            <div class="p-4 rounded-lg" style="background-color: var(--bg-secondary);">
+                                <div class="font-bold mb-2">💾 Persistent History</div>
+                                <p class="text-sm" style="color: var(--text-secondary);">All chats saved locally in your browser</p>
+                            </div>
+                            <div class="p-4 rounded-lg" style="background-color: var(--bg-secondary);">
+                                <div class="font-bold mb-2">🎨 Dark Mode</div>
+                                <p class="text-sm" style="color: var(--text-secondary);">Beautiful light and dark themes</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Messages will be inserted here -->
+                    <div id="messagesList" class="max-w-4xl mx-auto"></div>
+                </div>
+
+                <!-- Input Area (Sticky) -->
+                <div class="border-t p-4" style="background-color: var(--bg-primary); border-color: var(--border-color);">
+                    <div class="max-w-4xl mx-auto">
+                        <div class="flex gap-2 items-end">
+                            <textarea 
+                                id="messageInput" 
+                                placeholder="Ask anything..." 
+                                rows="1"
+                                class="flex-1 resize-none rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                style="background-color: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border-color);"
+                            ></textarea>
+                            <button 
+                                id="sendBtn" 
+                                class="p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="mt-2 text-xs text-center" style="color: var(--text-secondary);">
+                            Press Enter to send, Shift+Enter for new line
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="modal-overlay absolute inset-0" id="settingsOverlay"></div>
+        <div class="relative rounded-lg shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" style="background-color: var(--bg-primary);">
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-6">
+                    <h2 class="text-2xl font-bold">⚙️ Settings</h2>
+                    <button id="closeSettingsBtn" class="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- API Key -->
+                <div class="mb-6">
+                    <label class="block font-semibold mb-2">OpenRouter API Key</label>
+                    <input 
+                        type="password" 
+                        id="apiKeyInput" 
+                        placeholder="sk-or-..." 
+                        class="w-full px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        style="background-color: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border-color);"
+                    />
+                    <p class="text-sm mt-1" style="color: var(--text-secondary);">
+                        Get your API key from <a href="https://openrouter.ai/keys" target="_blank" class="text-blue-600 hover:underline">OpenRouter.ai</a>
+                    </p>
+                </div>
+
+                <!-- System Prompt -->
+                <div class="mb-6">
+                    <label class="block font-semibold mb-2">System Prompt (Optional)</label>
+                    <textarea 
+                        id="systemPromptInput" 
+                        placeholder="You are a helpful assistant..." 
+                        rows="3"
+                        class="w-full px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                        style="background-color: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border-color);"
+                    ></textarea>
+                </div>
+
+                <!-- Model Selection -->
+                <div class="mb-6">
+                    <label class="block font-semibold mb-2">Select Models (Choose 1-5 for parallel comparison)</label>
+                    <div class="space-y-2">
+                        <label class="flex items-center p-3 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700">
+                            <input type="checkbox" class="model-checkbox mr-3 w-5 h-5" value="deepseek/deepseek-r1:free" checked />
+                            <div>
+                                <div class="font-medium">DeepSeek R1 (Free)</div>
+                                <div class="text-sm" style="color: var(--text-secondary);">Advanced reasoning model</div>
+                            </div>
+                        </label>
+                        <label class="flex items-center p-3 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700">
+                            <input type="checkbox" class="model-checkbox mr-3 w-5 h-5" value="google/gemini-2.0-flash-exp:free" />
+                            <div>
+                                <div class="font-medium">Google Gemini 2.0 Flash (Free)</div>
+                                <div class="text-sm" style="color: var(--text-secondary);">Fast and efficient</div>
+                            </div>
+                        </label>
+                        <label class="flex items-center p-3 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700">
+                            <input type="checkbox" class="model-checkbox mr-3 w-5 h-5" value="meta-llama/llama-3.3-70b-instruct" />
+                            <div>
+                                <div class="font-medium">Llama 3.3 70B</div>
+                                <div class="text-sm" style="color: var(--text-secondary);">Meta's powerful model</div>
+                            </div>
+                        </label>
+                        <label class="flex items-center p-3 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700">
+                            <input type="checkbox" class="model-checkbox mr-3 w-5 h-5" value="anthropic/claude-3.5-sonnet" />
+                            <div>
+                                <div class="font-medium">Claude 3.5 Sonnet</div>
+                                <div class="text-sm" style="color: var(--text-secondary);">Anthropic's best model</div>
+                            </div>
+                        </label>
+                        <label class="flex items-center p-3 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700">
+                            <input type="checkbox" class="model-checkbox mr-3 w-5 h-5" value="openai/gpt-4o" />
+                            <div>
+                                <div class="font-medium">GPT-4o</div>
+                                <div class="text-sm" style="color: var(--text-secondary);">OpenAI's flagship model</div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Save Button -->
+                <button id="saveSettingsBtn" class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition">
+                    Save Settings
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ========================================
+        // STATE MANAGEMENT
+        // ========================================
+        
+        const STATE = {
+            chats: [],
+            currentChatId: null,
+            apiKey: '',
+            systemPrompt: '',
+            selectedModels: ['deepseek/deepseek-r1:free'],
+            darkMode: false,
+            isStreaming: false
+        };
+
+        // ========================================
+        // UTILITY FUNCTIONS
+        // ========================================
+        
+        function generateId() {
+            return Date.now().toString(36) + Math.random().toString(36).substr(2);
+        }
+
+        function saveToLocalStorage() {
+            try {
+                localStorage.setItem('phoenixEagleState', JSON.stringify({
+                    chats: STATE.chats,
+                    apiKey: STATE.apiKey,
+                    systemPrompt: STATE.systemPrompt,
+                    selectedModels: STATE.selectedModels,
+                    darkMode: STATE.darkMode
+                }));
+            } catch (error) {
+                console.error('Failed to save to localStorage:', error);
+            }
+        }
+
+        function loadFromLocalStorage() {
+            try {
+                const saved = localStorage.getItem('phoenixEagleState');
+                if (saved) {
+                    const data = JSON.parse(saved);
+                    STATE.chats = data.chats || [];
+                    STATE.apiKey = data.apiKey || '';
+                    STATE.systemPrompt = data.systemPrompt || '';
+                    STATE.selectedModels = data.selectedModels || ['deepseek/deepseek-r1:free'];
+                    STATE.darkMode = data.darkMode || false;
+                }
+            } catch (error) {
+                console.error('Failed to load from localStorage:', error);
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // ========================================
+        // MARKDOWN RENDERING
+        // ========================================
+        
+        function renderMarkdown(text) {
+            try {
+                if (typeof marked !== 'undefined') {
+                    marked.setOptions({
+                        breaks: true,
+                        gfm: true
+                    });
+                    return marked.parse(text);
+                }
+                return escapeHtml(text).replace(/\n/g, '<br>');
+            } catch (error) {
+                console.error('Markdown rendering error:', error);
+                return escapeHtml(text).replace(/\n/g, '<br>');
+            }
+        }
+
+        // ========================================
+        // CHAT MANAGEMENT
+        // ========================================
+        
+        function createNewChat() {
+            const chatId = generateId();
+            const chat = {
+                id: chatId,
+                title: 'New Chat',
+                messages: [],
+                createdAt: Date.now()
+            };
+            STATE.chats.unshift(chat);
+            STATE.currentChatId = chatId;
+            saveToLocalStorage();
+            renderChatHistory();
+            renderMessages();
+            closeSidebar();
+        }
+
+        function deleteChat(chatId) {
+            if (confirm('Delete this chat?')) {
+                STATE.chats = STATE.chats.filter(c => c.id !== chatId);
+                if (STATE.currentChatId === chatId) {
+                    STATE.currentChatId = STATE.chats.length > 0 ? STATE.chats[0].id : null;
+                }
+                saveToLocalStorage();
+                renderChatHistory();
+                renderMessages();
+            }
+        }
+
+        function renameChat(chatId) {
+            const chat = STATE.chats.find(c => c.id === chatId);
+            if (!chat) return;
+            
+            const newTitle = prompt('Enter new chat title:', chat.title);
+            if (newTitle && newTitle.trim()) {
+                chat.title = newTitle.trim();
+                saveToLocalStorage();
+                renderChatHistory();
+            }
+        }
+
+        function switchChat(chatId) {
+            STATE.currentChatId = chatId;
+            renderMessages();
+            closeSidebar();
+        }
+
+        function getCurrentChat() {
+            return STATE.chats.find(c => c.id === STATE.currentChatId);
+        }
+
+        // ========================================
+        // UI RENDERING
+        // ========================================
+        
+        function renderChatHistory() {
+            const container = document.getElementById('chatHistory');
+            if (!container) return;
+
+            if (STATE.chats.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-8 text-sm" style="color: var(--text-secondary);">
+                        No chats yet.<br>Click "New Chat" to start.
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = STATE.chats.map(chat => `
+                <div class="chat-item mb-2 p-3 rounded-lg cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 ${chat.id === STATE.currentChatId ? 'bg-gray-200 dark:bg-gray-700' : ''}" data-chat-id="${chat.id}">
+                    <div class="flex items-start justify-between group">
+                        <div class="flex-1 min-w-0 pr-2" onclick="switchChat('${chat.id}')">
+                            <div class="font-medium truncate">${escapeHtml(chat.title)}</div>
+                            <div class="text-xs mt-1" style="color: var(--text-secondary);">
+                                ${chat.messages.length} messages
+                            </div>
+                        </div>
+                        <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition">
+                            <button onclick="renameChat('${chat.id}')" class="p-1 hover:bg-gray-300 dark:hover:bg-gray-600 rounded" title="Rename">
+                                ✏️
+                            </button>
+                            <button onclick="deleteChat('${chat.id}')" class="p-1 hover:bg-gray-300 dark:hover:bg-gray-600 rounded" title="Delete">
+                                🗑️
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderMessages() {
+            const welcomeScreen = document.getElementById('welcomeScreen');
+            const messagesList = document.getElementById('messagesList');
+            
+            if (!welcomeScreen || !messagesList) return;
+
+            const chat = getCurrentChat();
+            
+            if (!chat || chat.messages.length === 0) {
+                welcomeScreen.classList.remove('hidden');
+                messagesList.innerHTML = '';
+                return;
+            }
+
+            welcomeScreen.classList.add('hidden');
+            
+            messagesList.innerHTML = chat.messages.map((msg, index) => {
+                if (msg.role === 'user') {
+                    return `
+                        <div class="mb-6 flex justify-end">
+                            <div class="message-user px-4 py-3 max-w-[80%]">
+                                <div class="font-semibold mb-1 text-sm">You</div>
+                                <div>${escapeHtml(msg.content)}</div>
+                            </div>
+                        </div>
+                    `;
+                } else if (msg.role === 'assistant') {
+                    // Check if this is a parallel response set
+                    if (msg.parallelResponses && msg.parallelResponses.length > 1) {
+                        const responsesHtml = msg.parallelResponses.map((resp, idx) => `
+                            <div class="parallel-response p-4 rounded-lg cursor-pointer mb-3 ${resp.selected ? 'selected' : ''}" 
+                                 style="background-color: var(--bg-secondary);"
+                                 onclick="selectBestResponse(${index}, ${idx})">
+                                <div class="flex items-center justify-between mb-2">
+                                    <div class="font-semibold text-sm">${escapeHtml(resp.model)}</div>
+                                    ${resp.selected ? '<span class="text-green-600 font-bold">✓ Selected</span>' : '<span class="text-xs" style="color: var(--text-secondary);">Click to select</span>'}
+                                </div>
+                                <div class="prose max-w-none" style="color: var(--text-primary);">
+                                    ${renderMarkdown(resp.content)}
+                                </div>
+                            </div>
+                        `).join('');
+                        
+                        return `
+                            <div class="mb-6">
+                                <div class="text-sm font-semibold mb-3" style="color: var(--text-secondary);">
+                                    🤖 AI Responses (${msg.parallelResponses.length} models)
+                                </div>
+                                ${responsesHtml}
+                            </div>
+                        `;
+                    } else {
+                        // Single response
+                        const content = msg.parallelResponses ? msg.parallelResponses[0].content : msg.content;
+                        const model = msg.parallelResponses ? msg.parallelResponses[0].model : 'AI';
+                        return `
+                            <div class="mb-6">
+                                <div class="message-ai px-4 py-3 max-w-[90%]">
+                                    <div class="font-semibold mb-1 text-sm flex items-center gap-2">
+                                        <span>🤖 ${escapeHtml(model)}</span>
+                                    </div>
+                                    <div class="prose max-w-none" style="color: var(--text-primary);">
+                                        ${renderMarkdown(content)}
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }
+                }
+                return '';
+            }).join('');
+
+            scrollToBottom();
+        }
+
+        function selectBestResponse(messageIndex, responseIndex) {
+            const chat = getCurrentChat();
+            if (!chat) return;
+
+            const message = chat.messages[messageIndex];
+            if (!message || !message.parallelResponses) return;
+
+            // Mark all as not selected
+            message.parallelResponses.forEach(resp => resp.selected = false);
+            // Mark the chosen one as selected
+            message.parallelResponses[responseIndex].selected = true;
+
+            saveToLocalStorage();
+            renderMessages();
+        }
+
+        function scrollToBottom() {
+            const container = document.getElementById('messagesContainer');
+            if (container) {
+                setTimeout(() => {
+                    container.scrollTop = container.scrollHeight;
+                }, 100);
+            }
+        }
+
+        // ========================================
+        // API INTEGRATION (STREAMING)
+        // ========================================
+        
+        async function sendMessage(userMessage) {
+            if (!userMessage.trim()) return;
+            if (!STATE.apiKey) {
+                alert('Please set your OpenRouter API key in Settings');
+                openSettings();
+                return;
+            }
+            if (STATE.selectedModels.length === 0) {
+                alert('Please select at least one model in Settings');
+                openSettings();
+                return;
+            }
+
+            let chat = getCurrentChat();
+            if (!chat) {
+                createNewChat();
+                chat = getCurrentChat();
+            }
+
+            // Add user message
+            chat.messages.push({
+                role: 'user',
+                content: userMessage
+            });
+
+            // Update chat title from first message
+            if (chat.messages.filter(m => m.role === 'user').length === 1) {
+                chat.title = userMessage.substring(0, 50) + (userMessage.length > 50 ? '...' : '');
+            }
+
+            saveToLocalStorage();
+            renderChatHistory();
+            renderMessages();
+
+            STATE.isStreaming = true;
+            updateSendButton();
+
+            // Prepare parallel responses
+            const assistantMessage = {
+                role: 'assistant',
+                parallelResponses: STATE.selectedModels.map(model => ({
+                    model: model,
+                    content: '',
+                    selected: false
+                }))
+            };
+
+            // Auto-select if only one model
+            if (assistantMessage.parallelResponses.length === 1) {
+                assistantMessage.parallelResponses[0].selected = true;
+            }
+
+            chat.messages.push(assistantMessage);
+            renderMessages();
+
+            // Send requests to all selected models in parallel
+            const promises = STATE.selectedModels.map((model, index) => 
+                streamFromModel(model, userMessage, index, assistantMessage)
+            );
+
+            await Promise.allSettled(promises);
+
+            STATE.isStreaming = false;
+            updateSendButton();
+            saveToLocalStorage();
+            renderMessages();
+        }
+
+        async function streamFromModel(model, userMessage, responseIndex, assistantMessage) {
+            try {
+                const messages = [];
+                
+                // Add system prompt if exists
+                if (STATE.systemPrompt.trim()) {
+                    messages.push({
+                        role: 'system',
+                        content: STATE.systemPrompt
+                    });
+                }
+
+                // Add conversation history (excluding the last assistant message we just added)
+                const chat = getCurrentChat();
+                const historyMessages = chat.messages.slice(0, -1);
+                
+                historyMessages.forEach(msg => {
+                    if (msg.role === 'user') {
+                        messages.push({ role: 'user', content: msg.content });
+                    } else if (msg.role === 'assistant') {
+                        // Use selected response if available, otherwise first response
+                        const selectedResp = msg.parallelResponses?.find(r => r.selected);
+                        const content = selectedResp ? selectedResp.content : (msg.parallelResponses ? msg.parallelResponses[0].content : msg.content);
+                        messages.push({ role: 'assistant', content: content });
+                    }
+                });
+
+                // Add current user message
+                messages.push({ role: 'user', content: userMessage });
+
+                const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${STATE.apiKey}`,
+                        'Content-Type': 'application/json',
+                        'HTTP-Referer': window.location.href,
+                        'X-Title': 'Phoenix Eagle Chat'
+                    },
+                    body: JSON.stringify({
+                        model: model,
+                        messages: messages,
+                        stream: true
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop() || '';
+
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const data = line.slice(6);
+                            if (data === '[DONE]') continue;
+
+                            try {
+                                const parsed = JSON.parse(data);
+                                const content = parsed.choices?.[0]?.delta?.content;
+                                if (content) {
+                                    assistantMessage.parallelResponses[responseIndex].content += content;
+                                    renderMessages();
+                                }
+                            } catch (e) {
+                                // Ignore parse errors for incomplete chunks
+                            }
+                        }
+                    }
+                }
+
+            } catch (error) {
+                console.error(`Error streaming from ${model}:`, error);
+                assistantMessage.parallelResponses[responseIndex].content = `Error: ${error.message}`;
+                renderMessages();
+            }
+        }
+
+        function updateSendButton() {
+            const sendBtn = document.getElementById('sendBtn');
+            if (sendBtn) {
+                sendBtn.disabled = STATE.isStreaming;
+            }
+        }
+
+        // ========================================
+        // SETTINGS MODAL
+        // ========================================
+        
+        function openSettings() {
+            const modal = document.getElementById('settingsModal');
+            const apiKeyInput = document.getElementById('apiKeyInput');
+            const systemPromptInput = document.getElementById('systemPromptInput');
+            
+            if (modal) modal.classList.remove('hidden');
+            if (apiKeyInput) apiKeyInput.value = STATE.apiKey;
+            if (systemPromptInput) systemPromptInput.value = STATE.systemPrompt;
+
+            // Update checkboxes
+            const checkboxes = document.querySelectorAll('.model-checkbox');
+            checkboxes.forEach(cb => {
+                cb.checked = STATE.selectedModels.includes(cb.value);
+            });
+        }
+
+        function closeSettings() {
+            const modal = document.getElementById('settingsModal');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        function saveSettings() {
+            const apiKeyInput = document.getElementById('apiKeyInput');
+            const systemPromptInput = document.getElementById('systemPromptInput');
+            const checkboxes = document.querySelectorAll('.model-checkbox:checked');
+
+            if (apiKeyInput) STATE.apiKey = apiKeyInput.value.trim();
+            if (systemPromptInput) STATE.systemPrompt = systemPromptInput.value.trim();
+            
+            STATE.selectedModels = Array.from(checkboxes).map(cb => cb.value);
+
+            if (STATE.selectedModels.length === 0) {
+                alert('Please select at least one model');
+                return;
+            }
+
+            if (STATE.selectedModels.length > 5) {
+                alert('Maximum 5 models allowed');
+                STATE.selectedModels = STATE.selectedModels.slice(0, 5);
+            }
+
+            saveToLocalStorage();
+            closeSettings();
+        }
+
+        // ========================================
+        // DARK MODE
+        // ========================================
+        
+        function toggleDarkMode() {
+            STATE.darkMode = !STATE.darkMode;
+            applyDarkMode();
+            saveToLocalStorage();
+        }
+
+        function applyDarkMode() {
+            const body = document.body;
+            const icon = document.getElementById('darkModeIcon');
+            const text = document.getElementById('darkModeText');
+
+            if (STATE.darkMode) {
+                body.classList.remove('light');
+                body.classList.add('dark');
+                if (icon) icon.textContent = '☀️';
+                if (text) text.textContent = 'Light Mode';
+            } else {
+                body.classList.remove('dark');
+                body.classList.add('light');
+                if (icon) icon.textContent = '🌙';
+                if (text) text.textContent = 'Dark Mode';
+            }
+        }
+
+        // ========================================
+        // SIDEBAR (MOBILE)
+        // ========================================
+        
+        function openSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            if (sidebar) sidebar.classList.remove('-translate-x-full');
+            if (overlay) overlay.classList.remove('hidden');
+        }
+
+        function closeSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            if (sidebar) sidebar.classList.add('-translate-x-full');
+            if (overlay) overlay.classList.add('hidden');
+        }
+
+        // ========================================
+        // EVENT HANDLERS
+        // ========================================
+        
+        function handleSendMessage() {
+            const input = document.getElementById('messageInput');
+            if (!input) return;
+
+            const message = input.value.trim();
+            if (message && !STATE.isStreaming) {
+                sendMessage(message);
+                input.value = '';
+                input.style.height = 'auto';
+            }
+        }
+
+        function setupEventListeners() {
+            // New Chat
+            const newChatBtn = document.getElementById('newChatBtn');
+            if (newChatBtn) {
+                newChatBtn.addEventListener('click', createNewChat);
+            }
+
+            // Send Message
+            const sendBtn = document.getElementById('sendBtn');
+            if (sendBtn) {
+                sendBtn.addEventListener('click', handleSendMessage);
+            }
+
+            // Message Input
+            const messageInput = document.getElementById('messageInput');
+            if (messageInput) {
+                messageInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSendMessage();
+                    }
+                });
+
+                // Auto-resize textarea
+                messageInput.addEventListener('input', (e) => {
+                    e.target.style.height = 'auto';
+                    e.target.style.height = Math.min(e.target.scrollHeight, 200) + 'px';
+                });
+            }
+
+            // Settings Modal
+            const settingsBtn = document.getElementById('settingsBtn');
+            const settingsBtnMobile = document.getElementById('settingsBtnMobile');
+            const closeSettingsBtn = document.getElementById('closeSettingsBtn');
+            const settingsOverlay = document.getElementById('settingsOverlay');
+            const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+
+            if (settingsBtn) settingsBtn.addEventListener('click', openSettings);
+            if (settingsBtnMobile) settingsBtnMobile.addEventListener('click', openSettings);
+            if (closeSettingsBtn) closeSettingsBtn.addEventListener('click', closeSettings);
+            if (settingsOverlay) settingsOverlay.addEventListener('click', closeSettings);
+            if (saveSettingsBtn) saveSettingsBtn.addEventListener('click', saveSettings);
+
+            // Dark Mode Toggle
+            const darkModeToggle = document.getElementById('darkModeToggle');
+            if (darkModeToggle) {
+                darkModeToggle.addEventListener('click', toggleDarkMode);
+            }
+
+            // Mobile Menu
+            const menuBtn = document.getElementById('menuBtn');
+            const closeSidebarBtn = document.getElementById('closeSidebarBtn');
+            const sidebarOverlay = document.getElementById('sidebarOverlay');
+
+            if (menuBtn) menuBtn.addEventListener('click', openSidebar);
+            if (closeSidebarBtn) closeSidebarBtn.addEventListener('click', closeSidebar);
+            if (sidebarOverlay) sidebarOverlay.addEventListener('click', closeSidebar);
+        }
+
+        // ========================================
+        // INITIALIZATION
+        // ========================================
+        
+        function init() {
+            // Load saved state
+            loadFromLocalStorage();
+
+            // Apply dark mode
+            applyDarkMode();
+
+            // Render UI
+            renderChatHistory();
+            renderMessages();
+
+            // Setup event listeners
+            setupEventListeners();
+
+            // Show app, hide loading
+            const loading = document.getElementById('loading');
+            const app = document.getElementById('app');
+            
+            if (loading) loading.classList.add('hidden');
+            if (app) app.classList.remove('hidden');
+
+            // Focus input
+            const messageInput = document.getElementById('messageInput');
+            if (messageInput) {
+                setTimeout(() => messageInput.focus(), 100);
+            }
+
+            console.log('🔥 Phoenix Eagle Chat initialized!');
+        }
+
+        // Start the app when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+    </script>
+</body>
+</html>
