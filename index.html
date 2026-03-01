@@ -277,46 +277,108 @@
                 </div>
 
                 <!-- Model Selection -->
-                <div class="mb-6">
-                    <label class="block font-semibold mb-2">Select Models (Choose 1-5 for parallel comparison)</label>
-                    <div class="space-y-2">
-                        <label class="flex items-center p-3 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700">
-                            <input type="checkbox" class="model-checkbox mr-3 w-5 h-5" value="deepseek/deepseek-r1:free" checked />
-                            <div>
-                                <div class="font-medium">DeepSeek R1 (Free)</div>
-                                <div class="text-sm" style="color: var(--text-secondary);">Advanced reasoning model</div>
-                            </div>
-                        </label>
-                        <label class="flex items-center p-3 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700">
-                            <input type="checkbox" class="model-checkbox mr-3 w-5 h-5" value="google/gemini-2.0-flash-exp:free" />
-                            <div>
-                                <div class="font-medium">Google Gemini 2.0 Flash (Free)</div>
-                                <div class="text-sm" style="color: var(--text-secondary);">Fast and efficient</div>
-                            </div>
-                        </label>
-                        <label class="flex items-center p-3 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700">
-                            <input type="checkbox" class="model-checkbox mr-3 w-5 h-5" value="meta-llama/llama-3.3-70b-instruct" />
-                            <div>
-                                <div class="font-medium">Llama 3.3 70B</div>
-                                <div class="text-sm" style="color: var(--text-secondary);">Meta's powerful model</div>
-                            </div>
-                        </label>
-                        <label class="flex items-center p-3 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700">
-                            <input type="checkbox" class="model-checkbox mr-3 w-5 h-5" value="anthropic/claude-3.5-sonnet" />
-                            <div>
-                                <div class="font-medium">Claude 3.5 Sonnet</div>
-                                <div class="text-sm" style="color: var(--text-secondary);">Anthropic's best model</div>
-                            </div>
-                        </label>
-                        <label class="flex items-center p-3 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700">
-                            <input type="checkbox" class="model-checkbox mr-3 w-5 h-5" value="openai/gpt-4o" />
-                            <div>
-                                <div class="font-medium">GPT-4o</div>
-                                <div class="text-sm" style="color: var(--text-secondary);">OpenAI's flagship model</div>
-                            </div>
-                        </label>
-                    </div>
+<div class="mb-6">
+
+    <!-- Title -->
+    <label class="block font-semibold mb-2">
+        Select Models (Choose 1-5 for parallel comparison)
+    </label>
+
+    <!-- Model List -->
+    <div id="modelList" class="space-y-2">
+
+        <!-- Default Models -->
+        <div class="model-item flex items-center justify-between p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
+            <label class="flex items-center cursor-pointer w-full">
+                <input type="checkbox" class="model-checkbox mr-3 w-5 h-5" value="deepseek/deepseek-r1:free" checked />
+                <div>
+                    <div class="font-medium">DeepSeek R1 (Free)</div>
+                    <div class="text-sm" style="color: var(--text-secondary);">Advanced reasoning model</div>
                 </div>
+            </label>
+            <button onclick="deleteModel(this)" class="text-red-500 ml-4">Delete</button>
+        </div>
+
+        <div class="model-item flex items-center justify-between p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
+            <label class="flex items-center cursor-pointer w-full">
+                <input type="checkbox" class="model-checkbox mr-3 w-5 h-5" value="google/gemini-2.0-flash-exp:free" />
+                <div>
+                    <div class="font-medium">Google Gemini 2.0 Flash</div>
+                    <div class="text-sm" style="color: var(--text-secondary);">Fast and efficient</div>
+                </div>
+            </label>
+            <button onclick="deleteModel(this)" class="text-red-500 ml-4">Delete</button>
+        </div>
+
+    </div>
+
+    <!-- Custom Model Section -->
+    <div class="mt-6 p-4 border rounded-lg">
+
+        <div class="font-semibold mb-2">Add Custom Model</div>
+
+        <input type="text" id="customName"
+            placeholder="Model Display Name"
+            class="w-full mb-2 p-2 border rounded-lg dark:bg-gray-800" />
+
+        <input type="text" id="customValue"
+            placeholder="Model Value (example: openai/gpt-4o)"
+            class="w-full mb-2 p-2 border rounded-lg dark:bg-gray-800" />
+
+        <input type="text" id="customDesc"
+            placeholder="Short Description"
+            class="w-full mb-2 p-2 border rounded-lg dark:bg-gray-800" />
+
+        <button onclick="addCustomModel()"
+            class="bg-blue-500 text-white px-4 py-2 rounded-lg">
+            Add Model
+        </button>
+    </div>
+
+</div>
+
+<!-- JavaScript -->
+<script>
+
+function addCustomModel() {
+
+    const name = document.getElementById("customName").value.trim();
+    const value = document.getElementById("customValue").value.trim();
+    const desc = document.getElementById("customDesc").value.trim();
+
+    if (!name || !value) {
+        alert("Please enter model name and value.");
+        return;
+    }
+
+    const modelList = document.getElementById("modelList");
+
+    const div = document.createElement("div");
+    div.className = "model-item flex items-center justify-between p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700";
+
+    div.innerHTML = `
+        <label class="flex items-center cursor-pointer w-full">
+            <input type="checkbox" class="model-checkbox mr-3 w-5 h-5" value="${value}" />
+            <div>
+                <div class="font-medium">${name}</div>
+                <div class="text-sm" style="color: var(--text-secondary);">${desc}</div>
+            </div>
+        </label>
+        <button onclick="deleteModel(this)" class="text-red-500 ml-4">Delete</button>
+    `;
+
+    modelList.appendChild(div);
+
+    document.getElementById("customName").value = "";
+    document.getElementById("customValue").value = "";
+    document.getElementById("customDesc").value = "";
+}
+
+function deleteModel(button) {
+    button.closest(".model-item").remove();
+}
+
+</script>
 
                 <!-- Save Button -->
                 <button id="saveSettingsBtn" class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition">
